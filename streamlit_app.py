@@ -407,7 +407,7 @@ def build_model_from_sidebar() -> tuple[CsFrequencyModel, str]:
     st.sidebar.caption(
         "Cesium D2 frequency graph. Enter AOM RF magnitudes in MHz; AOM +1/-1 order is encoded "
         "in the AOMs metadata near the top of cs_frequency_model.py. We assume CsDBR1 is locked "
-        "to F = 3 --> F prime = CO(2, 3)."
+        "to F = 3 --> F' = CO(2, 3)."
     )
 
     selected_beam = st.sidebar.selectbox(
