@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
+from matplotlib import rcParams
 from matplotlib.figure import Figure
 from matplotlib.patches import FancyArrowPatch, Circle, Rectangle
 
@@ -25,6 +28,12 @@ from cs_frequency_model import (
 )
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
+
+# Keep Matplotlib output as real SVG text where possible instead of converting
+# every character to a filled path. This makes browser-rendered plots sharper
+# on large/high-DPI lab displays.
+rcParams["svg.fonttype"] = "none"
+rcParams["font.family"] = "DejaVu Sans"
 
 # Force a light-looking Streamlit UI even when the browser or OS is in dark mode.
 # For a deployed app, the most complete version of this is also to add
@@ -83,6 +92,13 @@ st.markdown(
         color: #111111 !important;
         border-color: #cfcfcf !important;
     }
+    [data-testid="stTextInput"] input,
+    [data-testid="stTextInput"] div[data-baseweb="base-input"],
+    [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+        background-color: #f3f3f3 !important;
+        color: #111111 !important;
+        border-color: #cfcfcf !important;
+    }
     .stTabs [data-baseweb="tab-list"], .stTabs [data-baseweb="tab"] {
         background-color: #ffffff !important;
         color: #111111 !important;
@@ -94,6 +110,59 @@ st.markdown(
 
 LIGHT_PANEL_BG = "#ffffff"
 LIGHT_GRID = "#d0d0d0"
+
+
+def show_svg_figure(fig: Figure, *, extra_height_px: int = 0, margin_bottom_px: int = 18) -> None:
+    """Render a Matplotlib figure as inline SVG inside a Streamlit component.
+
+    Streamlit markdown can sometimes expose SVG/CSS style blocks as visible
+    text.  The component route keeps the SVG vector-sharp while preventing
+    raw style markup from leaking into the app.
+    """
+    buf = io.StringIO()
+    fig.savefig(
+        buf,
+        format="svg",
+        bbox_inches="tight",
+        facecolor=fig.get_facecolor(),
+        metadata={"Date": None},
+    )
+    svg = buf.getvalue()
+    width_in, height_in = fig.get_size_inches()
+    component_height_px = int(height_in * 125) + 80 + extra_height_px
+    html = f"""
+    <!doctype html>
+    <html>
+      <head>
+        <style>
+          html, body {{
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            overflow: hidden;
+          }}
+          .nacs-svg-figure {{
+            width: 100%;
+            background: #ffffff;
+            margin: 0 0 {margin_bottom_px}px 0;
+            padding: 0;
+            line-height: 0;
+          }}
+          .nacs-svg-figure svg {{
+            width: 100%;
+            height: auto;
+            display: block;
+          }}
+        </style>
+      </head>
+      <body>
+        <div class="nacs-svg-figure">
+          {svg}
+        </div>
+      </body>
+    </html>
+    """
+    components.html(html, height=component_height_px, scrolling=False)
 
 
 def pretty_rf_label(key: str) -> str:
@@ -122,11 +191,11 @@ def aom_short_label(component: str | None) -> str:
 
 
 def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
-    fig = Figure(figsize=(10.2, 6.0), dpi=120, facecolor=LIGHT_PANEL_BG)
+    fig = Figure(figsize=(10.2, 6.0), dpi=180, facecolor=LIGHT_PANEL_BG)
     ax = fig.add_subplot(111, facecolor=LIGHT_PANEL_BG)
-    ax.set_title(f"{APP_TITLE} - Cs D2 level diagram", fontsize=13)
-    ax.set_ylabel("Display energy coordinate [MHz], F=4 ground = 0")
-    ax.set_xlabel("Beam / optical path")
+    ax.set_title("Cs D2 level diagram", fontsize=15)
+    ax.set_ylabel("Display energy coordinate [MHz], F=4 ground = 0", fontsize=13)
+    ax.set_xlabel("")
     ax.grid(True, axis="y", alpha=0.18, color=LIGHT_GRID)
 
     label_box = dict(boxstyle="round,pad=0.22", facecolor="white", edgecolor="none", alpha=0.88)
@@ -148,14 +217,14 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     for f in (4, 3):
         y = ground_plot_energy[f]
         ax.hlines(y, xmin, xmax, color="0.12", linewidth=2.6, zorder=1)
-        ax.text(level_label_x, y, rf"$6^2S_{{1/2}}$  $F={f}$", ha="left", va="center",
-                fontsize=10, color="0.12", bbox=level_box, zorder=8, clip_on=False)
+        ax.text(level_label_x, y, f"6²S₁/₂  F={f}", ha="left", va="center",
+                fontsize=12, color="0.12", bbox=level_box, zorder=8, clip_on=False)
 
     for fp in (2, 3, 4, 5):
         y = excited_plot_energy[fp]
         ax.hlines(y, xmin, xmax, color="0.22", linewidth=2.0, zorder=1)
-        ax.text(level_label_x, y, rf"$6^2P_{{3/2}}$  $F'={fp}$", ha="left", va="center",
-                fontsize=10, color="0.22", bbox=level_box, zorder=8, clip_on=False)
+        ax.text(level_label_x, y, f"6²P₃/₂  F′={fp}", ha="left", va="center",
+                fontsize=12, color="0.22", bbox=level_box, zorder=8, clip_on=False)
 
     ax.text(xmin + 0.05, 0.5 * (ground_plot_energy[4] + excited_plot_energy[2]),
             "compressed\nlevel gaps", ha="left", va="center", fontsize=8, color="0.35",
@@ -182,7 +251,7 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
         ax.plot([x - 0.14, x + 0.14], [target_y, target_y], color=color, linewidth=1.2, alpha=0.45)
         ax.plot([x + 0.14, x + 0.14], [target_y, y1], color=color, linewidth=1.0, alpha=0.35)
 
-        label = f"{beam}\n$F={ground_f}\\rightarrow F'= {excited_f}$\n{det:+.1f} MHz"
+        label = f"{beam}\nF={ground_f} → F′={excited_f}\n{det:+.1f} MHz"
         va = "bottom" if y1 >= y0 else "top"
         stagger = {0: 132, 1: 42, 2: 222}[BEAM_ORDER.index(beam) % 3]
         if beam in ("CsDBR1", "OP"):
@@ -202,12 +271,12 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     pad = max(450.0, 0.06 * (ymax - ymin))
     ax.set_ylim(ymin - pad, ymax + pad)
     ax.set_xlim(xmin, xmax + 1.75)
-    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.20)
     return fig
 
 
 def make_graph_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
-    fig = Figure(figsize=(10.2, 3.45), dpi=120, facecolor=LIGHT_PANEL_BG)
+    fig = Figure(figsize=(10.2, 3.45), dpi=180, facecolor=LIGHT_PANEL_BG)
     ax = fig.add_subplot(111, facecolor=LIGHT_PANEL_BG)
     ax.set_title("Directed optical frequency graph", fontsize=13)
     ax.set_axis_off()
@@ -321,11 +390,11 @@ def parse_sidebar_float(raw: str, label: str, *, min_value: float | None = None)
 
 
 def build_model_from_sidebar() -> tuple[CsFrequencyModel, str]:
-    st.sidebar.markdown("### Frequency Settings")
+    st.sidebar.markdown("### NaCs 2.0 Frequency Settings")
     st.sidebar.caption(
         "Cesium D2 frequency graph. Enter AOM RF magnitudes in MHz; AOM +1/-1 order is encoded "
         "in the AOMs metadata near the top of cs_frequency_model.py. We assume CsDBR1 is locked "
-        "to F = 3 --> F'=CO(2, 3)."
+        "to F = 3 --> F prime = CO(2, 3)."
     )
 
     selected_beam = st.sidebar.selectbox(
@@ -381,8 +450,8 @@ def main() -> None:
     tab_plot, tab_tables, tab_model = st.tabs(["Plots", "Tables", "Model notes"])
 
     with tab_plot:
-        st.pyplot(make_level_figure(model, selected_beam), clear_figure=True, use_container_width=True)
-        st.pyplot(make_graph_figure(model, selected_beam), clear_figure=True, use_container_width=True)
+        show_svg_figure(make_level_figure(model, selected_beam), extra_height_px=90, margin_bottom_px=26)
+        show_svg_figure(make_graph_figure(model, selected_beam), extra_height_px=30, margin_bottom_px=12)
 
     with tab_tables:
         st.subheader("Detunings from selected beam")
