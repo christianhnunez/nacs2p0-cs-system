@@ -32,7 +32,7 @@ st.set_page_config(page_title=APP_TITLE, layout="wide")
 # Keep Matplotlib output as real SVG text where possible instead of converting
 # every character to a filled path. This makes browser-rendered plots sharper
 # on large/high-DPI lab displays.
-rcParams["svg.fonttype"] = "none"
+rcParams["svg.fonttype"] = "path"
 rcParams["font.family"] = "DejaVu Sans"
 
 # Force a light-looking Streamlit UI even when the browser or OS is in dark mode.
