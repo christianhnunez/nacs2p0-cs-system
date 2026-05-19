@@ -209,7 +209,7 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     ax.set_title("Cs D2 level diagram", fontsize=15)
     ax.set_ylabel("Frequency [MHz]", fontsize=13)
     ax.set_xlabel("")
-    ax.grid(True, axis="y", alpha=0.18, color=LIGHT_GRID)
+    #ax.grid(True, axis="y", alpha=0.18, color=LIGHT_GRID)
 
     label_box = dict(boxstyle="round,pad=0.22", facecolor="white", edgecolor="none", alpha=0.88)
     level_box = dict(boxstyle="round,pad=0.18", facecolor="white", edgecolor="none", alpha=0.94)
@@ -304,7 +304,16 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     pad = max(450.0, 0.06 * (ymax - ymin))
     ax.set_ylim(ymin - pad, ymax + pad)
     ax.set_xlim(xmin, xmax + 1.75)
-    fig.subplots_adjust(bottom=0.20)
+   
+   # Clean level-diagram frame: keep only physical-looking x/y axes.
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_linewidth(1.0)
+    ax.spines["bottom"].set_linewidth(1.0)
+    ax.tick_params(axis="both", direction="out")
+
+    fig.tight_layout()
+
     return fig
 
 
