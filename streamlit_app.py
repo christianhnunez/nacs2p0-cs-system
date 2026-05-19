@@ -112,13 +112,8 @@ LIGHT_PANEL_BG = "#ffffff"
 LIGHT_GRID = "#d0d0d0"
 
 
-def show_svg_figure(fig: Figure, *, extra_height_px: int = 0, margin_bottom_px: int = 18) -> None:
-    """Render a Matplotlib figure as inline SVG inside a Streamlit component.
-
-    Streamlit markdown can sometimes expose SVG/CSS style blocks as visible
-    text.  The component route keeps the SVG vector-sharp while preventing
-    raw style markup from leaking into the app.
-    """
+def figure_to_svg(fig: Figure) -> str:
+    """Convert a Matplotlib figure to raw SVG with text kept as SVG text."""
     buf = io.StringIO()
     fig.savefig(
         buf,
@@ -127,9 +122,18 @@ def show_svg_figure(fig: Figure, *, extra_height_px: int = 0, margin_bottom_px: 
         facecolor=fig.get_facecolor(),
         metadata={"Date": None},
     )
-    svg = buf.getvalue()
-    width_in, height_in = fig.get_size_inches()
-    component_height_px = int(height_in * 125) + 80 + extra_height_px
+    return buf.getvalue()
+
+
+def show_plot_stack(figures: list[Figure]) -> None:
+    """Show multiple SVG figures in one responsive component.
+
+    Keeping both plots inside one HTML component prevents Streamlit from giving
+    each plot an independently fixed-height iframe. The SVGs fill the available
+    width, preserve their aspect ratios, and stay adjacent during window resize.
+    """
+    svgs = [figure_to_svg(fig) for fig in figures]
+    total_height_px = 1180
     html = f"""
     <!doctype html>
     <html>
@@ -141,29 +145,38 @@ def show_svg_figure(fig: Figure, *, extra_height_px: int = 0, margin_bottom_px: 
             background: #ffffff;
             overflow: hidden;
           }}
-          .nacs-svg-figure {{
+          .plot-stack {{
             width: 100%;
+            max-width: 100%;
             background: #ffffff;
-            margin: 0 0 {margin_bottom_px}px 0;
+            margin: 0;
             padding: 0;
             line-height: 0;
           }}
-          .nacs-svg-figure svg {{
+          .plot-frame {{
+            width: 100%;
+            margin: 0 0 14px 0;
+            padding: 0;
+            background: #ffffff;
+            line-height: 0;
+          }}
+          .plot-frame svg {{
             width: 100%;
             height: auto;
             display: block;
+            background: #ffffff;
           }}
         </style>
       </head>
       <body>
-        <div class="nacs-svg-figure">
-          {svg}
+        <div class="plot-stack">
+          <div class="plot-frame">{svgs[0]}</div>
+          <div class="plot-frame">{svgs[1]}</div>
         </div>
       </body>
     </html>
     """
-    components.html(html, height=component_height_px, scrolling=False)
-
+    components.html(html, height=total_height_px, scrolling=False)
 
 def pretty_rf_label(key: str) -> str:
     label = key.replace("_MHz", "").replace("_", " ")
@@ -450,8 +463,10 @@ def main() -> None:
     tab_plot, tab_tables, tab_model = st.tabs(["Plots", "Tables", "Model notes"])
 
     with tab_plot:
-        show_svg_figure(make_level_figure(model, selected_beam), extra_height_px=90, margin_bottom_px=26)
-        show_svg_figure(make_graph_figure(model, selected_beam), extra_height_px=30, margin_bottom_px=12)
+        show_plot_stack([
+            make_level_figure(model, selected_beam),
+            make_graph_figure(model, selected_beam),
+        ])
 
     with tab_tables:
         st.subheader("Detunings from selected beam")
