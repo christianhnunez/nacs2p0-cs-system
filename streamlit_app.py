@@ -230,14 +230,34 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     for f in (4, 3):
         y = ground_plot_energy[f]
         ax.hlines(y, xmin, xmax, color="0.12", linewidth=2.6, zorder=1)
-        ax.text(level_label_x, y, f"6²S₁/₂  F={f}", ha="left", va="center",
-                fontsize=12, color="0.12", bbox=level_box, zorder=8, clip_on=False)
+        ax.text(
+            level_label_x,
+            y,
+            rf"$6^2\mathrm{{S}}_{{1/2}};\ F={f}$",
+            ha="left",
+            va="center",
+            fontsize=12,
+            color="0.12",
+            bbox=level_box,
+            zorder=8,
+            clip_on=False,
+        )
 
     for fp in (2, 3, 4, 5):
         y = excited_plot_energy[fp]
         ax.hlines(y, xmin, xmax, color="0.22", linewidth=2.0, zorder=1)
-        ax.text(level_label_x, y, f"6²P₃/₂  F′={fp}", ha="left", va="center",
-                fontsize=12, color="0.22", bbox=level_box, zorder=8, clip_on=False)
+        ax.text(
+            level_label_x,
+            y,
+            rf"$6^2\mathrm{{P}}_{{3/2}};\ F'={fp}$",
+            ha="left",
+            va="center",
+            fontsize=12,
+            color="0.22",
+            bbox=level_box,
+            zorder=8,
+            clip_on=False,
+        )
 
     ax.text(xmin + 0.05, 0.5 * (ground_plot_energy[4] + excited_plot_energy[2]),
             "compressed\nlevel gaps", ha="left", va="center", fontsize=8, color="0.35",
