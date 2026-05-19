@@ -194,7 +194,7 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     fig = Figure(figsize=(10.2, 6.0), dpi=180, facecolor=LIGHT_PANEL_BG)
     ax = fig.add_subplot(111, facecolor=LIGHT_PANEL_BG)
     ax.set_title("Cs D2 level diagram", fontsize=15)
-    ax.set_ylabel("Display energy coordinate [MHz], F=4 ground = 0", fontsize=13)
+    ax.set_ylabel("Frequency [MHz]", fontsize=13)
     ax.set_xlabel("")
     ax.grid(True, axis="y", alpha=0.18, color=LIGHT_GRID)
 
@@ -278,7 +278,7 @@ def make_level_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
 def make_graph_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     fig = Figure(figsize=(10.2, 3.45), dpi=180, facecolor=LIGHT_PANEL_BG)
     ax = fig.add_subplot(111, facecolor=LIGHT_PANEL_BG)
-    ax.set_title("Directed optical frequency graph", fontsize=13)
+    ax.set_title("Laser system directed graph", fontsize=13)
     ax.set_axis_off()
     ax.set_xlim(-0.2, 10.2)
     ax.set_ylim(-0.55, 7.1)
