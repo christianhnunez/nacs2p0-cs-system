@@ -33,33 +33,58 @@ st.set_page_config(page_title=APP_TITLE, layout="wide")
 st.markdown(
     """
     <style>
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #f4f4f4 !important;
-        color: #111111 !important;
-    }
-    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"],
+    [data-testid="stMainBlockContainer"] {
         background-color: #ffffff !important;
         color: #111111 !important;
     }
-    [data-testid="stMainBlockContainer"] {
-        background-color: #f4f4f4 !important;
-        color: #111111 !important;
-    }
+
     h1, h2, h3, h4, h5, h6, p, label, span, div {
         color: #111111;
     }
+
     [data-testid="stMetric"], [data-testid="stDataFrame"], [data-testid="stCodeBlock"] {
         background-color: #ffffff !important;
         color: #111111 !important;
     }
-    input, textarea, select {
-        background-color: #ffffff !important;
+
+    /* Force BaseWeb widgets used by Streamlit selectbox/button/text inputs to light mode. */
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="popover"],
+    div[data-baseweb="menu"],
+    ul[role="listbox"],
+    li[role="option"] {
+        background-color: #f3f3f3 !important;
+        color: #111111 !important;
+        border-color: #cfcfcf !important;
+    }
+    div[data-baseweb="select"] svg,
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div {
+        color: #111111 !important;
+        fill: #111111 !important;
+    }
+    button[kind="secondary"], button[data-testid="baseButton-secondary"] {
+        background-color: #f3f3f3 !important;
+        color: #111111 !important;
+        border: 1px solid #cfcfcf !important;
+    }
+    button[kind="secondary"] p, button[data-testid="baseButton-secondary"] p {
         color: #111111 !important;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: #f4f4f4 !important;
+    input, textarea, select, div[data-baseweb="input"] input {
+        background-color: #f3f3f3 !important;
+        color: #111111 !important;
+        border-color: #cfcfcf !important;
     }
-    .stTabs [data-baseweb="tab"] {
+    div[data-baseweb="input"] > div {
+        background-color: #f3f3f3 !important;
+        color: #111111 !important;
+        border-color: #cfcfcf !important;
+    }
+    .stTabs [data-baseweb="tab-list"], .stTabs [data-baseweb="tab"] {
+        background-color: #ffffff !important;
         color: #111111 !important;
     }
     </style>
@@ -75,7 +100,7 @@ def pretty_rf_label(key: str) -> str:
     label = key.replace("_MHz", "").replace("_", " ")
     if key in AOMS:
         aom = AOMS[key]
-        label += f" ({aom.type_label}, {aom.order_label}, multiplier {aom.multiplier:+d})"
+        label += f" ({aom.type_label}, {aom.order_label})"
     return label
 
 
@@ -281,8 +306,22 @@ def make_graph_figure(model: CsFrequencyModel, selected_beam: str) -> Figure:
     return fig
 
 
+
+
+def parse_sidebar_float(raw: str, label: str, *, min_value: float | None = None) -> float:
+    try:
+        value = float(raw.strip())
+    except ValueError:
+        st.sidebar.error(f"{label} must be a number. Keeping its default value.")
+        return float(DEFAULT_RF[label])
+    if min_value is not None and value < min_value:
+        st.sidebar.error(f"{label} must be >= {min_value:g}. Keeping its default value.")
+        return float(DEFAULT_RF[label])
+    return value
+
+
 def build_model_from_sidebar() -> tuple[CsFrequencyModel, str]:
-    st.sidebar.title(APP_TITLE)
+    st.sidebar.markdown("### Frequency Settings")
     st.sidebar.caption(
         "Cesium D2 frequency graph. Enter AOM RF magnitudes in MHz; AOM +1/-1 order is encoded "
         "in the AOMs metadata near the top of cs_frequency_model.py. We assume CsDBR1 is locked "
@@ -304,16 +343,18 @@ def build_model_from_sidebar() -> tuple[CsFrequencyModel, str]:
     rf_values = {}
     st.sidebar.subheader("RF inputs")
     for key, default in DEFAULT_RF.items():
-        # f_CsREF is allowed to be general. AOMs are magnitudes, so use min_value=0.
+        # Use text inputs instead of st.number_input so Streamlit does not render the
+        # built-in +/- steppers. f_CsREF is allowed to be general. AOM RFs are
+        # magnitudes, so they must be non-negative; the +/- diffraction order is
+        # encoded in the AOMS metadata.
         min_value = None if key == "f_CsREF_MHz" else 0.0
-        rf_values[key] = st.sidebar.number_input(
+        current_value = float(st.session_state.rf_values.get(key, default))
+        raw = st.sidebar.text_input(
             pretty_rf_label(key),
-            value=float(st.session_state.rf_values.get(key, default)),
-            min_value=min_value,
-            step=0.1,
-            format="%.9g",
+            value=f"{current_value:.9g}",
             key=f"rf_{key}",
         )
+        rf_values[key] = parse_sidebar_float(raw, key, min_value=min_value)
 
     st.session_state.rf_values = rf_values.copy()
     return CsFrequencyModel(rf_values), selected_beam
@@ -333,10 +374,9 @@ def main() -> None:
     detuning_rows = model.detuning_table(selected_beam)
     nearest_label, nearest_det = min(detuning_rows, key=lambda item: abs(item[1]))
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     c1.metric("Selected beam", selected_beam)
-    c2.metric("Shift from CsDBR1", f"{shifts[selected_beam]:+.6f} MHz")
-    c3.metric("Nearest detuning", f"{nearest_det:+.6f} MHz", nearest_label)
+    c2.metric("Nearest detuning", f"{nearest_det:+.6f} MHz", nearest_label)
 
     tab_plot, tab_tables, tab_model = st.tabs(["Plots", "Tables", "Model notes"])
 
